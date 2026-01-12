@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOF基金套利工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>LOF基金套利工具</h1>
+            <div class="header-controls">
+                <div id="userInfo" style="display: none; margin-right: 15px;">
+                    <span id="usernameDisplay" style="margin-right: 10px; color: #333;"></span>
+                    <button id="logoutBtn" class="btn btn-small btn-secondary">登出</button>
+                </div>
+                <!-- 通知图标 -->
+                <div id="notificationContainer" style="display: none; position: relative; margin-right: 10px;">
+                    <button id="notificationBtn" class="btn btn-secondary" style="position: relative;">
+                        通知
+                        <span id="notificationBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: #dc3545; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; line-height: 18px; text-align: center;">0</span>
+                    </button>
+                </div>
+                <button id="loginBtn" class="btn btn-secondary" style="display: none;">登录</button>
+                <button id="refreshBtn" class="btn btn-primary">刷新数据</button>
+                <button id="autoRefreshBtn" class="btn btn-secondary">自动刷新</button>
+                <button id="discoverBtn" class="btn btn-secondary">发现基金</button>
+                <button id="arbitrageRecordsBtn" class="btn btn-secondary">套利记录</button>
+                <button id="settingsBtn" class="btn btn-secondary">设置</button>
+                <button id="dataSourceConfigBtn" class="btn btn-secondary" style="display: none;">数据源配置</button>
+                <button id="userManagementBtn" class="btn btn-secondary" style="display: none;">用户管理</button>
+                <button id="adminArbitrageRecordsBtn" class="btn btn-secondary" style="display: none;">所有套利记录</button>
+                <label class="switch">
+                    <input type="checkbox" id="mockModeToggle">
+                    <span class="slider"></span>
+                    <span class="switch-label">模拟数据</span>
+                </label>
+            </div>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">监控基金数:</span>
+                <span class="stat-value" id="fundCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">自选基金:</span>
+                <span class="stat-value" id="favoriteCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">套利机会:</span>
+                <span class="stat-value opportunity" id="opportunityCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">最后更新:</span>
+                <span class="stat-value" id="lastUpdate">--</span>
+            </div>
+            <div class="stat-item">
+                <button id="filterFavoritesBtn" class="btn btn-small btn-secondary" style="margin-left: 20px;">只看自选</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="funds-table-container">
+                <table class="funds-table" id="fundsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">自选</th>
+                            <th class="sortable" data-sort="fund_code">基金代码 <span class="sort-icon"></span></th>
+                            <th class="sortable" data-sort="fund_name">基金名称 <span class="sort-icon"></span></th>
+                            <th class="sortable" data-sort="price">场内价格 <span class="sort-icon"></span></th>
+                            <th class="sortable" data-sort="nav">场外净值 <span class="sort-icon"></span></th>
+                            <th class="sortable" data-sort="price_diff_pct">溢价率 <span class="sort-icon"></span></th>
+                            <th class="sortable" data-sort="arbitrage_type">套利类型 <span class="sort-icon"></span></th>
+                            <th class="sortable" data-sort="profit_rate">收益率 <span class="sort-icon"></span></th>
+                            <th class="sortable" data-sort="purchase_limit">限购 <span class="sort-icon"></span></th>
+                            <th class="sortable" data-sort="has_opportunity">状态 <span class="sort-icon"></span></th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fundsTableBody">
+                        <tr>
+                            <td colspan="11" class="loading">正在加载数据...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="detail-panel" id="detailPanel">
+                <div class="detail-header">
+                    <h2 id="detailTitle">基金详情</h2>
+                    <button class="close-btn" id="closeDetailBtn">×</button>
+                </div>
+                <div class="detail-content" id="detailContent">
+                    <p class="placeholder">点击基金查看详细信息</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="log-panel" id="logPanel">
+            <div class="log-header">
+                <h3>操作日志</h3>
+                <button class="btn btn-small" id="clearLogBtn">清空</button>
+            </div>
+            <div class="log-content" id="logContent"></div>
+        </div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>设置</h2>
+                <button class="close-btn" id="closeSettingsBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>交易费用 (%)</h3>
+                    <div class="form-group">
+                        <label>买入佣金:</label>
+                        <input type="number" id="buyCommission" step="0.0001" min="0" max="1">
+                    </div>
+                    <div class="form-group">
+                        <label>卖出佣金:</label>
+                        <input type="number" id="sellCommission" step="0.0001" min="0" max="1">
+                    </div>
+                    <div class="form-group">
+                        <label>申购费率:</label>
+                        <input type="number" id="subscribeFee" step="0.0001" min="0" max="5">
+                    </div>
+                    <div class="form-group">
+                        <label>赎回费率:</label>
+                        <input type="number" id="redeemFee" step="0.0001" min="0" max="5">
+                    </div>
+                    <div class="form-group">
+                        <label>印花税:</label>
+                        <input type="number" id="stampTax" step="0.0001" min="0" max="1">
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>套利阈值</h3>
+                    <div class="form-group">
+                        <label>最小收益率 (%):</label>
+                        <input type="number" id="minProfitRate" step="0.01" min="0" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label>最小溢价率 (%):</label>
+                        <input type="number" id="minPriceDiff" step="0.01" min="0" max="10">
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>监控设置</h3>
+                    <div class="form-group">
+                        <label>更新间隔 (秒):</label>
+                        <input type="number" id="updateInterval" step="1" min="10" max="3600">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelSettingsBtn">取消</button>
+                <button class="btn btn-primary" id="saveSettingsBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 套利记录模态框 -->
+    <div class="modal" id="recordArbitrageModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>记录套利交易</h2>
+                <button class="close-btn" id="closeRecordArbitrageBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>基金代码:</label>
+                    <input type="text" id="recordFundCode" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>基金名称:</label>
+                    <input type="text" id="recordFundName" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>套利类型:</label>
+                    <input type="text" id="recordArbitrageType" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>初始操作:</label>
+                    <div id="recordInitialOperation" style="padding: 10px; background: #f9f9f9; border-radius: 4px; margin-top: 5px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>初始价格（<span id="recordPriceLabel">净值</span>）:</label>
+                    <input type="number" id="recordInitialPrice" step="0.0001" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>初始金额（元）:</label>
+                    <input type="number" id="recordInitialAmount" step="0.01" min="0" required>
+                    <small style="color: #666; display: block; margin-top: 5px;">输入金额后，份额将自动计算</small>
+                    <div id="purchaseLimitHint" style="margin-top: 8px; padding: 8px; border-radius: 4px; display: none;"></div>
+                </div>
+                <div class="form-group">
+                    <label>初始份额（自动计算）:</label>
+                    <input type="number" id="recordInitialShares" step="0.01" min="0" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>初始日期:</label>
+                    <input type="date" id="recordInitialDate" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelRecordBtn">取消</button>
+                <button class="btn btn-primary" id="saveRecordBtn">创建记录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 套利记录管理模态框 -->
+    <div class="modal" id="arbitrageRecordsModal">
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh;">
+            <div class="modal-header">
+                <h2>套利记录管理</h2>
+                <button class="close-btn" id="closeArbitrageRecordsBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="stats-bar" style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                    <div class="stat-item">
+                        <span class="stat-label">总交易数:</span>
+                        <span class="stat-value" id="statsTotalCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">总盈亏:</span>
+                        <span class="stat-value" id="statsTotalProfit">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">总投入:</span>
+                        <span class="stat-value" id="statsTotalInvestment">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">总收益率:</span>
+                        <span class="stat-value" id="statsTotalReturnRate">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">胜率:</span>
+                        <span class="stat-value" id="statsWinRate">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">进行中:</span>
+                        <span class="stat-value" id="statsInProgress">0</span>
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <button class="btn btn-small btn-secondary" id="filterAllBtn">全部</button>
+                    <button class="btn btn-small btn-secondary" id="filterCompletedBtn">已完成</button>
+                    <button class="btn btn-small btn-secondary" id="filterInProgressBtn">进行中</button>
+                </div>
+                <div style="overflow-x: auto; max-height: 500px;">
+                    <table class="funds-table" style="font-size: 12px;">
+                        <thead>
+                            <tr>
+                                <th>基金代码</th>
+                                <th>类型</th>
+                                <th>初始操作</th>
+                                <th>初始价格</th>
+                                <th>初始份额</th>
+                                <th>初始金额</th>
+                                <th>最终操作</th>
+                                <th>最终价格</th>
+                                <th>最终金额</th>
+                                <th>盈亏</th>
+                                <th>收益率</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="arbitrageRecordsBody">
+                            <tr><td colspan="13" class="loading">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 完成套利记录模态框 -->
+    <div class="modal" id="completeArbitrageModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>完成套利交易</h2>
+                <button class="close-btn" id="closeCompleteArbitrageBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label id="completeFinalPriceLabel">最终价格（场内卖出价格）:</label>
+                    <input type="number" id="completeFinalPrice" step="0.0001" min="0" required>
+                    <small style="color: #666; display: block; margin-top: 5px;">将自动获取当前价格/净值，可手动修改</small>
+                </div>
+                <div class="form-group">
+                    <label>最终份额（默认与初始份额相同，可手动修改）:</label>
+                    <input type="number" id="completeFinalShares" step="0.01" min="0">
+                    <small style="color: #666; display: block; margin-top: 5px;">将自动填充为初始份额，如有变化可手动修改</small>
+                </div>
+                <div class="form-group">
+                    <label>最终金额（可选，自动计算）:</label>
+                    <input type="number" id="completeFinalAmount" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>完成日期:</label>
+                    <input type="date" id="completeFinalDate" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelCompleteBtn">取消</button>
+                <button class="btn btn-primary" id="saveCompleteBtn">完成记录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登录/注册模态框 -->
+    <div class="modal" id="authModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 id="authModalTitle">登录</h2>
+                <button class="close-btn" id="closeAuthBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="authTabs" style="margin-bottom: 20px; border-bottom: 1px solid #ddd;">
+                    <button id="loginTabBtn" class="auth-tab-btn active" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid #007bff; cursor: pointer; font-size: 16px;">登录</button>
+                    <button id="registerTabBtn" class="auth-tab-btn" style="padding: 10px 20px; background: none; border: none; cursor: pointer; font-size: 16px; color: #666;">注册</button>
+                </div>
+                
+                <div id="loginForm">
+                    <div class="form-group">
+                        <label>用户名:</label>
+                        <input type="text" id="loginUsername" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label>密码:</label>
+                        <input type="password" id="loginPassword" required autocomplete="current-password">
+                    </div>
+                    <div id="loginError" style="color: red; margin-top: 10px; display: none;"></div>
+                    <div class="modal-footer" style="margin-top: 20px;">
+                        <button class="btn btn-primary" id="submitLoginBtn">登录</button>
+                    </div>
+                </div>
+                
+                <div id="registerForm" style="display: none;">
+                    <div class="form-group">
+                        <label>用户名:</label>
+                        <input type="text" id="registerUsername" required autocomplete="username">
+                        <small style="color: #666; display: block; margin-top: 5px;">至少3个字符，只能包含字母和数字</small>
+                    </div>
+                    <div class="form-group">
+                        <label>密码:</label>
+                        <input type="password" id="registerPassword" required autocomplete="new-password">
+                        <small style="color: #666; display: block; margin-top: 5px;">至少6个字符</small>
+                    </div>
+                    <div class="form-group">
+                        <label>确认密码:</label>
+                        <input type="password" id="registerPasswordConfirm" required autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱（可选）:</label>
+                        <input type="email" id="registerEmail" autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label>验证码:</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="text" id="registerCaptcha" placeholder="请输入计算结果" style="flex: 1;" maxlength="10">
+                            <span id="captchaQuestion" style="font-weight: bold; color: #007bff; min-width: 100px; text-align: center;"></span>
+                            <button type="button" class="btn btn-small btn-secondary" id="refreshCaptchaBtn" style="white-space: nowrap;">刷新</button>
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 5px;">请计算验证码中的数学题</small>
+                    </div>
+                    <div id="registerError" style="color: red; margin-top: 10px; display: none;"></div>
+                    <div class="modal-footer" style="margin-top: 20px;">
+                        <button class="btn btn-primary" id="submitRegisterBtn">注册</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据源配置模态框（仅管理员可见） -->
+    <div class="modal" id="dataSourceConfigModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>数据源配置</h2>
+                <button class="close-btn" id="closeDataSourceConfigBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>监控设置</h3>
+                    <div class="form-group">
+                        <label>更新间隔 (秒):</label>
+                        <input type="number" id="dataSourceUpdateInterval" step="1" min="10" max="3600">
+                    </div>
+                </div>
+                <div id="dataSourceConfigContainer">
+                    <!-- 数据源配置将动态加载 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDataSourceConfigBtn">取消</button>
+                <button class="btn btn-primary" id="saveDataSourceConfigBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户管理模态框（仅管理员可见） -->
+    <div class="modal" id="userManagementModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>用户管理</h2>
+                <button class="close-btn" id="closeUserManagementBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" id="refreshUsersBtn">刷新列表</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+                                <th style="padding: 10px; text-align: left;">用户名</th>
+                                <th style="padding: 10px; text-align: left;">邮箱</th>
+                                <th style="padding: 10px; text-align: left;">角色</th>
+                                <th style="padding: 10px; text-align: left;">注册时间</th>
+                                <th style="padding: 10px; text-align: left;">最后登录</th>
+                                <th style="padding: 10px; text-align: left;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userManagementBody">
+                            <tr>
+                                <td colspan="6" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeUserManagementFooterBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑用户模态框 -->
+    <div class="modal" id="editUserModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>编辑用户</h2>
+                <button class="close-btn" id="closeEditUserBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>用户名:</label>
+                    <input type="text" id="editUsername" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>邮箱:</label>
+                    <input type="email" id="editEmail">
+                </div>
+                <div class="form-group">
+                    <label>角色:</label>
+                    <select id="editRole">
+                        <option value="user">普通用户</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>重置密码（留空则不修改）:</label>
+                    <input type="password" id="editPassword" placeholder="输入新密码（至少6个字符）">
+                </div>
+                <div id="editUserError" style="color: red; margin-top: 10px; display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelEditUserBtn">取消</button>
+                <button class="btn btn-primary" id="saveEditUserBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理员套利记录查看模态框 -->
+    <div class="modal" id="adminArbitrageRecordsModal">
+        <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>所有用户套利记录</h2>
+                <button class="close-btn" id="closeAdminArbitrageRecordsBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 统计信息 -->
+                <div id="adminArbitrageStatistics" style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
+                    <h3 style="margin-top: 0;">统计信息</h3>
+                    <div id="adminArbitrageStatsContent" class="loading">加载中...</div>
+                </div>
+                
+                <!-- 筛选和操作 -->
+                <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary" id="refreshAdminArbitrageRecordsBtn">刷新列表</button>
+                    <select id="adminArbitrageStatusFilter" style="padding: 5px 10px;">
+                        <option value="">全部状态</option>
+                        <option value="completed">已完成</option>
+                        <option value="in_progress">进行中</option>
+                        <option value="cancelled">已取消</option>
+                        <option value="pending">待执行</option>
+                    </select>
+                    <input type="text" id="adminArbitrageFundCodeFilter" placeholder="基金代码筛选" style="padding: 5px 10px; flex: 1; min-width: 150px;">
+                    <button class="btn btn-secondary" id="applyAdminArbitrageFilterBtn">应用筛选</button>
+                </div>
+                
+                <!-- 记录列表 -->
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+                                <th style="padding: 8px; text-align: left;">用户名</th>
+                                <th style="padding: 8px; text-align: left;">基金代码</th>
+                                <th style="padding: 8px; text-align: left;">基金名称</th>
+                                <th style="padding: 8px; text-align: left;">套利类型</th>
+                                <th style="padding: 8px; text-align: left;">状态</th>
+                                <th style="padding: 8px; text-align: right;">初始金额</th>
+                                <th style="padding: 8px; text-align: right;">最终金额</th>
+                                <th style="padding: 8px; text-align: right;">盈亏</th>
+                                <th style="padding: 8px; text-align: right;">盈亏率</th>
+                                <th style="padding: 8px; text-align: left;">创建时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminArbitrageRecordsBody">
+                            <tr>
+                                <td colspan="10" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeAdminArbitrageRecordsFooterBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知模态框 -->
+    <div class="modal" id="notificationModal">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>站内信</h2>
+                <div>
+                    <button class="btn btn-small btn-secondary" id="markAllReadBtn" style="margin-right: 10px;">全部已读</button>
+                    <button class="btn btn-small btn-secondary" id="deleteReadBtn" style="margin-right: 10px;">删除已读</button>
+                    <button class="close-btn" id="closeNotificationBtn">×</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="notificationsList" class="loading">加载中...</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeNotificationFooterBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/arbitrage_records.js') }}"></script>
+</body>
+</html>

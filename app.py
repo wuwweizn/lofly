@@ -1414,23 +1414,77 @@ def register():
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     """用户登录"""
+    # #region agent log
+    import json
+    log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+    if os.path.exists(os.path.dirname(log_path)):
+        try:
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps({'location':'app.py:login:entry','message':'收到登录请求','data':{},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'D,E'})+'\n')
+        except: pass
+    # #endregion
+    
     try:
         data = request.get_json()
         username = data.get('username', '').strip()
         password = data.get('password', '')
         
+        # #region agent log
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        if os.path.exists(os.path.dirname(log_path)):
+            try:
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({'location':'app.py:login:parsed','message':'解析登录数据','data':{'username':username,'passwordLength':len(password) if password else 0,'hasUsername':bool(username),'hasPassword':bool(password)},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'D'})+'\n')
+            except: pass
+        # #endregion
+        
         if not username or not password:
+            # #region agent log
+            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+            if os.path.exists(os.path.dirname(log_path)):
+                try:
+                    with open(log_path, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({'location':'app.py:login:validation_failed','message':'用户名或密码为空','data':{'username':username,'hasPassword':bool(password)},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'D'})+'\n')
+                except: pass
+            # #endregion
             return jsonify({
                 'success': False,
                 'message': '用户名和密码不能为空'
             }), 400
         
+        # #region agent log
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        if os.path.exists(os.path.dirname(log_path)):
+            try:
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({'location':'app.py:login:before_user_manager','message':'调用user_manager.login前','data':{'username':username,'usersCount':len(user_manager.users)},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
+            except: pass
+        # #endregion
+        
         success, message, user_info = user_manager.login(username, password)
+        
+        # #region agent log
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        if os.path.exists(os.path.dirname(log_path)):
+            try:
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({'location':'app.py:login:after_user_manager','message':'user_manager.login返回','data':{'success':success,'message':message,'hasUserInfo':bool(user_info),'userRole':user_info.get('role') if user_info else None},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
+            except: pass
+        # #endregion
         
         if success:
             # 设置session
             session['username'] = username
             session['logged_in'] = True
+            
+            # #region agent log
+            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+            if os.path.exists(os.path.dirname(log_path)):
+                try:
+                    with open(log_path, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({'location':'app.py:login:success','message':'登录成功','data':{'username':username,'role':user_info.get('role') if user_info else None},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
+                except: pass
+            # #endregion
             
             return jsonify({
                 'success': True,
@@ -1438,11 +1492,27 @@ def login():
                 'user': user_info
             })
         else:
+            # #region agent log
+            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+            if os.path.exists(os.path.dirname(log_path)):
+                try:
+                    with open(log_path, 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({'location':'app.py:login:failed','message':'登录失败','data':{'username':username,'message':message},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
+                except: pass
+            # #endregion
             return jsonify({
                 'success': False,
                 'message': message
             }), 401
     except Exception as e:
+        # #region agent log
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        if os.path.exists(os.path.dirname(log_path)):
+            try:
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({'location':'app.py:login:exception','message':'登录异常','data':{'error':str(e)},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
+            except: pass
+        # #endregion
         return jsonify({
             'success': False,
             'message': str(e)

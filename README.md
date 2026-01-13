@@ -28,7 +28,7 @@
 1. **下载项目**：克隆或下载项目到服务器
    ```bash
    git clone <repository-url>
-   cd lof1
+   cd lofly
    ```
 
 2. **运行部署脚本**：

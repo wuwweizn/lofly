@@ -23,6 +23,8 @@ class UserManager:
         """
         self.data_file = data_file
         self.users = self._load_users()
+        # 如果用户列表为空，创建默认管理员账号
+        self._ensure_default_admin()
     
     def _load_users(self) -> Dict:
         """加载用户数据"""
@@ -59,6 +61,88 @@ class UserManager:
                 json.dump(self.users, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"保存用户数据失败: {e}")
+    
+    def _ensure_default_admin(self):
+        """确保默认管理员账号存在"""
+        # #region agent log
+        import json
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'A',
+            'location': 'user_manager.py:_ensure_default_admin:entry',
+            'message': '检查默认管理员账号',
+            'data': {
+                'users_count': len(self.users),
+                'admin_exists': 'admin' in self.users,
+                'data_file': self.data_file,
+                'file_exists': os.path.exists(self.data_file)
+            },
+            'timestamp': int(datetime.now().timestamp() * 1000)
+        }
+        try:
+            # 尝试使用项目根目录下的.cursor/debug.log
+            project_root = os.path.dirname(os.path.abspath(self.data_file))
+            log_path = os.path.join(project_root, '.cursor', 'debug.log')
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
+        
+        # 如果用户列表为空或admin不存在，创建默认管理员
+        if not self.users or 'admin' not in self.users:
+            # #region agent log
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'run1',
+                'hypothesisId': 'A',
+                'location': 'user_manager.py:_ensure_default_admin:creating',
+                'message': '创建默认管理员账号',
+                'data': {},
+                'timestamp': int(datetime.now().timestamp() * 1000)
+            }
+            try:
+                project_root = os.path.dirname(os.path.abspath(self.data_file))
+                log_path = os.path.join(project_root, '.cursor', 'debug.log')
+                os.makedirs(os.path.dirname(log_path), exist_ok=True)
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+            except: pass
+            # #endregion
+            
+            self.users['admin'] = {
+                'username': 'admin',
+                'password_hash': generate_password_hash('admin123'),
+                'email': None,
+                'created_at': datetime.now().isoformat(),
+                'last_login': None,
+                'role': 'admin',
+                'favorites': [],
+                'settings': {}
+            }
+            self._save_users()
+            
+            # #region agent log
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'run1',
+                'hypothesisId': 'A',
+                'location': 'user_manager.py:_ensure_default_admin:created',
+                'message': '默认管理员账号创建成功',
+                'data': {},
+                'timestamp': int(datetime.now().timestamp() * 1000)
+            }
+            try:
+                project_root = os.path.dirname(os.path.abspath(self.data_file))
+                log_path = os.path.join(project_root, '.cursor', 'debug.log')
+                os.makedirs(os.path.dirname(log_path), exist_ok=True)
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+            except: pass
+            # #endregion
+            
+            print("已创建默认管理员账号: admin / admin123")
     
     def register(self, username: str, password: str, email: str = None) -> tuple[bool, str]:
         """
@@ -180,13 +264,109 @@ class UserManager:
         Returns:
             (是否成功, 消息, 用户信息)
         """
+        # #region agent log
+        import json
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'B',
+            'location': 'user_manager.py:login:entry',
+            'message': '开始登录验证',
+            'data': {
+                'username': username,
+                'username_length': len(username) if username else 0,
+                'password_length': len(password) if password else 0,
+                'users_count': len(self.users),
+                'admin_exists': 'admin' in self.users,
+                'username_in_users': username in self.users if username else False
+            },
+            'timestamp': int(datetime.now().timestamp() * 1000)
+        }
+        try:
+            project_root = os.path.dirname(os.path.abspath(self.data_file))
+            log_path = os.path.join(project_root, '.cursor', 'debug.log')
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
+        
         if username not in self.users:
+            # #region agent log
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'run1',
+                'hypothesisId': 'B',
+                'location': 'user_manager.py:login:user_not_found',
+                'message': '用户不存在',
+                'data': {
+                    'username': username,
+                    'available_users': list(self.users.keys())
+                },
+                'timestamp': int(datetime.now().timestamp() * 1000)
+            }
+            try:
+                project_root = os.path.dirname(os.path.abspath(self.data_file))
+                log_path = os.path.join(project_root, '.cursor', 'debug.log')
+                os.makedirs(os.path.dirname(log_path), exist_ok=True)
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+            except: pass
+            # #endregion
             return False, "用户名或密码错误", None
         
         user = self.users[username]
         
+        # #region agent log
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'B',
+            'location': 'user_manager.py:login:before_password_check',
+            'message': '准备验证密码',
+            'data': {
+                'username': username,
+                'has_password_hash': 'password_hash' in user,
+                'password_hash_length': len(user.get('password_hash', '')) if 'password_hash' in user else 0,
+                'password_hash_preview': user.get('password_hash', '')[:30] + '...' if user.get('password_hash') else None
+            },
+            'timestamp': int(datetime.now().timestamp() * 1000)
+        }
+        try:
+            project_root = os.path.dirname(os.path.abspath(self.data_file))
+            log_path = os.path.join(project_root, '.cursor', 'debug.log')
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
+        
         # 验证密码
-        if not check_password_hash(user['password_hash'], password):
+        password_valid = check_password_hash(user['password_hash'], password)
+        
+        # #region agent log
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'B',
+            'location': 'user_manager.py:login:password_check_result',
+            'message': '密码验证结果',
+            'data': {
+                'username': username,
+                'password_valid': password_valid
+            },
+            'timestamp': int(datetime.now().timestamp() * 1000)
+        }
+        try:
+            project_root = os.path.dirname(os.path.abspath(self.data_file))
+            log_path = os.path.join(project_root, '.cursor', 'debug.log')
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
+        
+        if not password_valid:
             return False, "用户名或密码错误", None
         
         # 更新最后登录时间
@@ -201,6 +381,28 @@ class UserManager:
             'last_login': user['last_login'],
             'role': user.get('role', 'user')  # 默认为普通用户
         }
+        
+        # #region agent log
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'B',
+            'location': 'user_manager.py:login:success',
+            'message': '登录成功',
+            'data': {
+                'username': username,
+                'role': user_info.get('role')
+            },
+            'timestamp': int(datetime.now().timestamp() * 1000)
+        }
+        try:
+            project_root = os.path.dirname(os.path.abspath(self.data_file))
+            log_path = os.path.join(project_root, '.cursor', 'debug.log')
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
         
         return True, "登录成功", user_info
     

@@ -259,9 +259,7 @@ async function populateDataSources(dataSources, containerId = 'dataSourcesContai
         const sorted = Object.entries(dataSources.fund_list_sources).sort((a, b) => a[1].priority - b[1].priority);
         sorted.forEach(([key, source]) => {
             const status = statusData.fund_list_sources?.[key] || {installed: true, available: true};
-            // 对于tushare，显示token输入框
-            const token = (key === 'tushare' && source.token) ? source.token : '';
-            html += createDataSourceRow(key, source, status, 'fund_list_sources', token);
+            html += createDataSourceRow(key, source, status, 'fund_list_sources', source.token);
         });
     }
     html += '</div>';

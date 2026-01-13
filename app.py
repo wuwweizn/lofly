@@ -10,13 +10,11 @@ from arbitrage_calculator import ArbitrageCalculator
 from arbitrage_recorder import ArbitrageRecorder
 from user_manager import UserManager
 from notification_manager import NotificationManager, NotificationType
-from data_source_config_manager import DataSourceConfigManager
 from config import LOF_FUNDS, DATA_SOURCE, TRADE_FEES, ARBITRAGE_THRESHOLD
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import time
 import secrets
-import os
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
@@ -29,7 +27,6 @@ calculator = None
 arbitrage_recorder = ArbitrageRecorder()
 user_manager = UserManager()
 notification_manager = NotificationManager()
-data_source_config_manager = DataSourceConfigManager()
 
 
 # 登录验证装饰器
@@ -74,30 +71,14 @@ def admin_required(f):
 
 def init_fetcher(mock=False):
     """初始化数据获取器"""
-    global data_fetcher, calculator, use_mock_data, DATA_SOURCE
+    global data_fetcher, calculator, use_mock_data
     use_mock_data = mock
     if mock:
         data_fetcher = MockDataFetcher()
     else:
-        # 合并保存的配置和默认配置
-        merged_config = data_source_config_manager.merge_with_default(DATA_SOURCE)
-        DATA_SOURCE.update(merged_config)
-        
-        # 从配置获取Tushare token（优先环境变量，其次UI配置）
-        tushare_token = None
-        # 1. 优先从环境变量获取
-        env_token = os.getenv('TUSHARE_TOKEN')
-        if env_token:
-            tushare_token = env_token
-        # 2. 从配置管理器获取
-        elif data_source_config_manager.get_tushare_token():
-            tushare_token = data_source_config_manager.get_tushare_token()
-        # 3. 从DATA_SOURCE获取（向后兼容）
-        elif DATA_SOURCE.get('tushare_token'):
-            tushare_token = DATA_SOURCE.get('tushare_token')
-        
+        # 从配置获取Tushare token
+        tushare_token = DATA_SOURCE.get('tushare_token') if DATA_SOURCE.get('use_tushare', False) else None
         data_fetcher = LOFDataFetcher(tushare_token=tushare_token)
-        data_fetcher.data_source_config = DATA_SOURCE
     calculator = ArbitrageCalculator()
 
 
@@ -1414,77 +1395,23 @@ def register():
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     """用户登录"""
-    # #region agent log
-    import json
-    log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-    if os.path.exists(os.path.dirname(log_path)):
-        try:
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(json.dumps({'location':'app.py:login:entry','message':'收到登录请求','data':{},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'D,E'})+'\n')
-        except: pass
-    # #endregion
-    
     try:
         data = request.get_json()
         username = data.get('username', '').strip()
         password = data.get('password', '')
         
-        # #region agent log
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        if os.path.exists(os.path.dirname(log_path)):
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'app.py:login:parsed','message':'解析登录数据','data':{'username':username,'passwordLength':len(password) if password else 0,'hasUsername':bool(username),'hasPassword':bool(password)},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'D'})+'\n')
-            except: pass
-        # #endregion
-        
         if not username or not password:
-            # #region agent log
-            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-            if os.path.exists(os.path.dirname(log_path)):
-                try:
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({'location':'app.py:login:validation_failed','message':'用户名或密码为空','data':{'username':username,'hasPassword':bool(password)},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'D'})+'\n')
-                except: pass
-            # #endregion
             return jsonify({
                 'success': False,
                 'message': '用户名和密码不能为空'
             }), 400
         
-        # #region agent log
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        if os.path.exists(os.path.dirname(log_path)):
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'app.py:login:before_user_manager','message':'调用user_manager.login前','data':{'username':username,'usersCount':len(user_manager.users)},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
-            except: pass
-        # #endregion
-        
         success, message, user_info = user_manager.login(username, password)
-        
-        # #region agent log
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        if os.path.exists(os.path.dirname(log_path)):
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'app.py:login:after_user_manager','message':'user_manager.login返回','data':{'success':success,'message':message,'hasUserInfo':bool(user_info),'userRole':user_info.get('role') if user_info else None},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
-            except: pass
-        # #endregion
         
         if success:
             # 设置session
             session['username'] = username
             session['logged_in'] = True
-            
-            # #region agent log
-            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-            if os.path.exists(os.path.dirname(log_path)):
-                try:
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({'location':'app.py:login:success','message':'登录成功','data':{'username':username,'role':user_info.get('role') if user_info else None},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
-                except: pass
-            # #endregion
             
             return jsonify({
                 'success': True,
@@ -1492,27 +1419,11 @@ def login():
                 'user': user_info
             })
         else:
-            # #region agent log
-            log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-            if os.path.exists(os.path.dirname(log_path)):
-                try:
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({'location':'app.py:login:failed','message':'登录失败','data':{'username':username,'message':message},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
-                except: pass
-            # #endregion
             return jsonify({
                 'success': False,
                 'message': message
             }), 401
     except Exception as e:
-        # #region agent log
-        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
-        if os.path.exists(os.path.dirname(log_path)):
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'app.py:login:exception','message':'登录异常','data':{'error':str(e)},'timestamp':int(time.time()*1000),'sessionId':'debug-session','hypothesisId':'E'})+'\n')
-            except: pass
-        # #endregion
         return jsonify({
             'success': False,
             'message': str(e)
@@ -1693,14 +1604,11 @@ def update_user_settings():
 @admin_required
 def get_data_source_config():
     """获取数据源配置（仅管理员）"""
-    # 合并保存的配置和默认配置
-    merged_config = data_source_config_manager.merge_with_default(DATA_SOURCE)
-    
     return jsonify({
         'success': True,
         'data': {
-            'update_interval': merged_config['update_interval'],
-            'data_sources': merged_config
+            'update_interval': DATA_SOURCE['update_interval'],
+            'data_sources': DATA_SOURCE
         }
     })
 
@@ -1713,37 +1621,41 @@ def update_data_source_config():
         data = request.get_json()
         data_sources = data.get('data_sources', {})
         
-        # 保存配置到文件
-        data_source_config_manager.update_config(data_sources)
-        
-        # 更新全局数据源配置（运行时使用）
+        # 更新全局数据源配置
         global DATA_SOURCE
-        merged_config = data_source_config_manager.merge_with_default(DATA_SOURCE)
-        DATA_SOURCE.update(merged_config)
+        
+        # 更新更新间隔
+        if 'update_interval' in data_sources:
+            DATA_SOURCE['update_interval'] = data_sources['update_interval']
+        
+        # 更新各数据源配置
+        for source_type in ['price_sources', 'nav_sources', 'fund_list_sources', 'name_sources', 'purchase_limit_sources']:
+            if source_type in data_sources:
+                if source_type not in DATA_SOURCE:
+                    DATA_SOURCE[source_type] = {}
+                for source_name, source_config in data_sources[source_type].items():
+                    if source_name not in DATA_SOURCE[source_type]:
+                        DATA_SOURCE[source_type][source_name] = {}
+                    DATA_SOURCE[source_type][source_name].update(source_config)
         
         # 如果更新了Tushare配置，重新初始化fetcher
         if 'fund_list_sources' in data_sources and 'tushare' in data_sources['fund_list_sources']:
             tushare_config = data_sources['fund_list_sources']['tushare']
+            if 'token' in tushare_config:
+                DATA_SOURCE['tushare_token'] = tushare_config['token']
+            if 'enabled' in tushare_config:
+                DATA_SOURCE['use_tushare'] = tushare_config['enabled']
             
             # 重新初始化数据获取器
             global data_fetcher
-            # 优先使用环境变量，其次使用UI配置
-            tushare_token = None
-            env_token = os.getenv('TUSHARE_TOKEN')
-            if env_token:
-                tushare_token = env_token
-            elif tushare_config.get('token'):
-                tushare_token = tushare_config.get('token')
-            elif DATA_SOURCE.get('tushare_token'):
-                tushare_token = DATA_SOURCE.get('tushare_token')
-            
-            if not use_mock_data and tushare_token:
+            tushare_token = tushare_config.get('token') or DATA_SOURCE.get('tushare_token')
+            if not use_mock_data:
                 data_fetcher = LOFDataFetcher(tushare_token=tushare_token)
                 data_fetcher.data_source_config = DATA_SOURCE
         
         return jsonify({
             'success': True,
-            'message': '数据源配置已更新并保存'
+            'message': '数据源配置已更新'
         })
     except Exception as e:
         return jsonify({

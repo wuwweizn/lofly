@@ -10,18 +10,6 @@ from datetime import datetime
 from typing import Dict, Optional, List
 from werkzeug.security import generate_password_hash, check_password_hash
 
-def _get_log_path():
-    """获取日志文件路径（跨平台）"""
-    try:
-        # 尝试获取项目根目录
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        log_dir = os.path.join(current_dir, '.cursor')
-        if not os.path.exists(log_dir):
-            return None
-        return os.path.join(log_dir, 'debug.log')
-    except:
-        return None
-
 
 class UserManager:
     """用户管理器"""
@@ -35,34 +23,13 @@ class UserManager:
         """
         self.data_file = data_file
         self.users = self._load_users()
-        # 初始化默认管理员账户（如果不存在）
-        self._init_default_admin()
     
     def _load_users(self) -> Dict:
         """加载用户数据"""
-        # #region agent log
-        import json
-        log_path = _get_log_path()
-        if log_path:
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'user_manager.py:_load_users:entry','message':'开始加载用户数据','data':{'data_file':self.data_file,'file_exists':os.path.exists(self.data_file)},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'A'})+'\n')
-            except: pass
-        # #endregion
-        
         if os.path.exists(self.data_file):
             try:
                 with open(self.data_file, 'r', encoding='utf-8') as f:
                     users = json.load(f)
-                    # #region agent log
-                    log_path = _get_log_path()
-                    if log_path:
-                        try:
-                            with open(log_path, 'a', encoding='utf-8') as f:
-                                f.write(json.dumps({'location':'user_manager.py:_load_users:loaded','message':'用户数据加载成功','data':{'usersCount':len(users),'usernames':list(users.keys())},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'A'})+'\n')
-                        except: pass
-                    # #endregion
-                    
                     # 为旧用户数据添加缺失的字段
                     updated = False
                     for username, user_data in users.items():
@@ -81,82 +48,9 @@ class UserManager:
                             json.dump(users, f, ensure_ascii=False, indent=2)
                     return users
             except Exception as e:
-                # #region agent log
-                log_path = _get_log_path()
-                if log_path:
-                    try:
-                        with open(log_path, 'a', encoding='utf-8') as f:
-                            f.write(json.dumps({'location':'user_manager.py:_load_users:error','message':'加载用户数据失败','data':{'error':str(e)},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'A'})+'\n')
-                    except: pass
-                # #endregion
                 print(f"加载用户数据失败: {e}")
                 return {}
-        
-        # #region agent log
-        log_path = _get_log_path()
-        if log_path:
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'user_manager.py:_load_users:empty','message':'用户数据文件不存在，返回空字典','data':{'data_file':self.data_file},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'A'})+'\n')
-            except: pass
-        # #endregion
         return {}
-    
-    def _init_default_admin(self):
-        """初始化默认管理员账户（如果不存在）"""
-        # #region agent log
-        import json
-        log_path = _get_log_path()
-        if log_path:
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'user_manager.py:_init_default_admin:entry','message':'检查默认管理员账户','data':{'admin_exists':'admin' in self.users},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'A'})+'\n')
-            except: pass
-        # #endregion
-        
-        default_admin_username = 'admin'
-        default_admin_password = 'admin123'
-        
-        if default_admin_username not in self.users:
-            # #region agent log
-            log_path = _get_log_path()
-            if log_path:
-                try:
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({'location':'user_manager.py:_init_default_admin:creating','message':'创建默认管理员账户','data':{'username':default_admin_username},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'A'})+'\n')
-                except: pass
-            # #endregion
-            
-            self.users[default_admin_username] = {
-                'username': default_admin_username,
-                'password_hash': generate_password_hash(default_admin_password),
-                'email': None,
-                'created_at': datetime.now().isoformat(),
-                'last_login': None,
-                'role': 'admin',  # 管理员角色
-                'favorites': [],
-                'settings': {}
-            }
-            self._save_users()
-            
-            # #region agent log
-            log_path = _get_log_path()
-            if log_path:
-                try:
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({'location':'user_manager.py:_init_default_admin:created','message':'默认管理员账户创建成功','data':{'username':default_admin_username,'usersCount':len(self.users)},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'A'})+'\n')
-                except: pass
-            # #endregion
-            print(f"[初始化] 已创建默认管理员账户: {default_admin_username} / {default_admin_password}")
-        else:
-            # #region agent log
-            log_path = _get_log_path()
-            if log_path:
-                try:
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({'location':'user_manager.py:_init_default_admin:exists','message':'默认管理员账户已存在','data':{'username':default_admin_username,'role':self.users[default_admin_username].get('role')},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'A'})+'\n')
-                except: pass
-            # #endregion
     
     def _save_users(self):
         """保存用户数据"""
@@ -286,59 +180,13 @@ class UserManager:
         Returns:
             (是否成功, 消息, 用户信息)
         """
-        # #region agent log
-        import json
-        log_path = _get_log_path()
-        if log_path:
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'user_manager.py:login:entry','message':'开始登录验证','data':{'username':username,'passwordLength':len(password) if password else 0,'usersCount':len(self.users),'userExists':username in self.users},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'B,C,D'})+'\n')
-            except: pass
-        # #endregion
-        
         if username not in self.users:
-            # #region agent log
-            log_path = _get_log_path()
-            if log_path:
-                try:
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({'location':'user_manager.py:login:user_not_found','message':'用户不存在','data':{'username':username,'availableUsers':list(self.users.keys())},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'B'})+'\n')
-                except: pass
-            # #endregion
             return False, "用户名或密码错误", None
         
         user = self.users[username]
         
-        # #region agent log
-        log_path = _get_log_path()
-        if log_path:
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'user_manager.py:login:before_password_check','message':'开始验证密码','data':{'username':username,'hasPasswordHash':bool(user.get('password_hash')),'role':user.get('role')},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'C'})+'\n')
-            except: pass
-        # #endregion
-        
         # 验证密码
-        password_valid = check_password_hash(user['password_hash'], password)
-        
-        # #region agent log
-        log_path = _get_log_path()
-        if log_path:
-            try:
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({'location':'user_manager.py:login:password_check_result','message':'密码验证结果','data':{'username':username,'passwordValid':password_valid},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'C'})+'\n')
-            except: pass
-        # #endregion
-        
-        if not password_valid:
-            # #region agent log
-            log_path = _get_log_path()
-            if log_path:
-                try:
-                    with open(log_path, 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({'location':'user_manager.py:login:password_invalid','message':'密码验证失败','data':{'username':username},'timestamp':int(datetime.now().timestamp()*1000),'sessionId':'debug-session','hypothesisId':'C'})+'\n')
-                except: pass
-            # #endregion
+        if not check_password_hash(user['password_hash'], password):
             return False, "用户名或密码错误", None
         
         # 更新最后登录时间

@@ -62,12 +62,87 @@ class LOFDataFetcher:
         tushare_config = fund_list_sources.get('tushare', {})
         use_tushare = tushare_config.get('enabled', True) if fund_list_sources else DATA_SOURCE.get('use_tushare', True)
         
+        # #region agent log
+        import json
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'C',
+            'location': 'data_fetcher.py:__init__:tushare_init_check',
+            'message': '检查Tushare初始化条件',
+            'data': {
+                'tushare_available': TUSHARE_AVAILABLE,
+                'use_tushare': use_tushare,
+                'has_token': tushare_token is not None,
+                'token_length': len(tushare_token) if tushare_token else 0,
+                'token_preview': tushare_token[:20] + '...' if tushare_token and len(tushare_token) > 20 else tushare_token
+            },
+            'timestamp': int(time.time() * 1000)
+        }
+        try:
+            with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
+        
         if TUSHARE_AVAILABLE and use_tushare and tushare_token:
             try:
+                # #region agent log
+                log_data = {
+                    'sessionId': 'debug-session',
+                    'runId': 'run1',
+                    'hypothesisId': 'C',
+                    'location': 'data_fetcher.py:__init__:before_set_token',
+                    'message': '准备设置Tushare token',
+                    'data': {},
+                    'timestamp': int(time.time() * 1000)
+                }
+                try:
+                    with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+                except: pass
+                # #endregion
+                
                 ts.set_token(tushare_token)
                 self.tushare_pro = ts.pro_api()
+                
+                # #region agent log
+                log_data = {
+                    'sessionId': 'debug-session',
+                    'runId': 'run1',
+                    'hypothesisId': 'C',
+                    'location': 'data_fetcher.py:__init__:tushare_init_success',
+                    'message': 'Tushare数据源初始化成功',
+                    'data': {},
+                    'timestamp': int(time.time() * 1000)
+                }
+                try:
+                    with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+                except: pass
+                # #endregion
+                
                 print("Tushare数据源已初始化")
             except Exception as e:
+                # #region agent log
+                log_data = {
+                    'sessionId': 'debug-session',
+                    'runId': 'run1',
+                    'hypothesisId': 'C',
+                    'location': 'data_fetcher.py:__init__:tushare_init_error',
+                    'message': 'Tushare初始化失败',
+                    'data': {
+                        'error_type': type(e).__name__,
+                        'error_message': str(e),
+                        'error_str': str(e)
+                    },
+                    'timestamp': int(time.time() * 1000)
+                }
+                try:
+                    with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+                except: pass
+                # #endregion
                 print(f"Tushare初始化失败: {e}")
                 self.tushare_pro = None
         
@@ -164,15 +239,83 @@ class LOFDataFetcher:
         Returns:
             基金列表，包含代码、中文名称和类型（index/stock）
         """
+        # #region agent log
+        import json
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'B',
+            'location': 'data_fetcher.py:get_lof_funds_list_tushare:entry',
+            'message': '开始从Tushare获取LOF基金列表',
+            'data': {'tushare_pro_available': self.tushare_pro is not None},
+            'timestamp': int(time.time() * 1000)
+        }
+        try:
+            with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
+        
         if not self.tushare_pro:
+            # #region agent log
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'run1',
+                'hypothesisId': 'B',
+                'location': 'data_fetcher.py:get_lof_funds_list_tushare:no_tushare',
+                'message': 'Tushare未初始化，无法获取基金列表',
+                'data': {},
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+            except: pass
+            # #endregion
             return []
         
         try:
+            # #region agent log
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'run1',
+                'hypothesisId': 'B',
+                'location': 'data_fetcher.py:get_lof_funds_list_tushare:before_api_call',
+                'message': '准备调用Tushare API',
+                'data': {},
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+            except: pass
+            # #endregion
+            
             # 获取场内上市基金
             df = self.tushare_pro.fund_basic(
                 market='E',  # E表示场内基金
                 status='L'   # L表示上市
             )
+            
+            # #region agent log
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'run1',
+                'hypothesisId': 'B',
+                'location': 'data_fetcher.py:get_lof_funds_list_tushare:after_api_call',
+                'message': 'Tushare API调用完成',
+                'data': {
+                    'df_is_none': df is None,
+                    'df_empty': df.empty if df is not None else None,
+                    'df_shape': list(df.shape) if df is not None else None
+                },
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+            except: pass
+            # #endregion
             
             if df is not None and not df.empty:
                 lof_funds = []
@@ -196,8 +339,43 @@ class LOFDataFetcher:
                                     'type': fund_category  # 'index' 或 'stock'
                                 })
                 
+                # #region agent log
+                log_data = {
+                    'sessionId': 'debug-session',
+                    'runId': 'run1',
+                    'hypothesisId': 'B',
+                    'location': 'data_fetcher.py:get_lof_funds_list_tushare:success',
+                    'message': '成功获取LOF基金列表',
+                    'data': {'lof_funds_count': len(lof_funds)},
+                    'timestamp': int(time.time() * 1000)
+                }
+                try:
+                    with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+                except: pass
+                # #endregion
+                
                 return lof_funds
         except Exception as e:
+            # #region agent log
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'run1',
+                'hypothesisId': 'B',
+                'location': 'data_fetcher.py:get_lof_funds_list_tushare:error',
+                'message': 'Tushare获取LOF基金列表失败',
+                'data': {
+                    'error_type': type(e).__name__,
+                    'error_message': str(e),
+                    'error_str': str(e)
+                },
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+            except: pass
+            # #endregion
             print(f"Tushare获取LOF基金列表失败: {e}")
         
         return []

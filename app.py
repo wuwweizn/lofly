@@ -76,8 +76,68 @@ def init_fetcher(mock=False):
     if mock:
         data_fetcher = MockDataFetcher()
     else:
-        # 从配置获取Tushare token
-        tushare_token = DATA_SOURCE.get('tushare_token') if DATA_SOURCE.get('use_tushare', False) else None
+        # 从配置获取Tushare token（优先级：环境变量 > fund_list_sources > tushare_token）
+        import os
+        # #region agent log
+        import json
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'A',
+            'location': 'app.py:init_fetcher:entry',
+            'message': '开始初始化数据获取器',
+            'data': {
+                'use_tushare': DATA_SOURCE.get('use_tushare'),
+                'env_token_exists': 'TUSHARE_TOKEN' in os.environ,
+                'config_token': DATA_SOURCE.get('tushare_token', '')[:10] + '...' if DATA_SOURCE.get('tushare_token') else None,
+                'fund_list_token_exists': 'fund_list_sources' in DATA_SOURCE and 'tushare' in DATA_SOURCE.get('fund_list_sources', {})
+            },
+            'timestamp': int(time.time() * 1000)
+        }
+        try:
+            with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
+        
+        # 优先级1：环境变量
+        tushare_token = os.environ.get('TUSHARE_TOKEN')
+        token_source = 'environment'
+        
+        # 优先级2：fund_list_sources中的token
+        if not tushare_token:
+            fund_list_sources = DATA_SOURCE.get('fund_list_sources', {})
+            tushare_config = fund_list_sources.get('tushare', {})
+            if tushare_config.get('enabled', True):
+                tushare_token = tushare_config.get('token')
+                token_source = 'fund_list_sources'
+        
+        # 优先级3：向后兼容的tushare_token
+        if not tushare_token and DATA_SOURCE.get('use_tushare', False):
+            tushare_token = DATA_SOURCE.get('tushare_token')
+            token_source = 'tushare_token'
+        
+        # #region agent log
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'run1',
+            'hypothesisId': 'A',
+            'location': 'app.py:init_fetcher:token_resolved',
+            'message': 'Token解析完成',
+            'data': {
+                'token_source': token_source,
+                'token_length': len(tushare_token) if tushare_token else 0,
+                'token_preview': tushare_token[:20] + '...' if tushare_token and len(tushare_token) > 20 else tushare_token,
+                'token_is_placeholder': tushare_token and 'your_tushare_token' in tushare_token.lower() if tushare_token else False
+            },
+            'timestamp': int(time.time() * 1000)
+        }
+        try:
+            with open('c:\\lof1\\.cursor\\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_data, ensure_ascii=False) + '\n')
+        except: pass
+        # #endregion
+        
         data_fetcher = LOFDataFetcher(tushare_token=tushare_token)
     calculator = ArbitrageCalculator()
 

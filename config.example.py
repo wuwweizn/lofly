@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-LOF基金套利工具配置文件
+LOF基金套利工具配置文件模板
+
+首次部署时，请复制此文件为 config.py 并配置：
+1. 设置 Tushare token（如果使用Tushare数据源）
+2. 根据需要调整其他配置项
+
+或者使用环境变量设置 TUSHARE_TOKEN（推荐）
 """
 
 # 交易费用配置（单位：百分比）
@@ -61,7 +67,7 @@ DATA_SOURCE = {
     
     # 向后兼容的旧配置
     'use_tushare': True,
-    'tushare_token': 'your_tushare_token_here',
+    'tushare_token': 'your_tushare_token_here',  # 请替换为您的真实Tushare token，或使用环境变量 TUSHARE_TOKEN
 }
 
 # 常用LOF基金代码（真实LOF基金列表）

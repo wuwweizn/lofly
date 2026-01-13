@@ -19,13 +19,20 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# 虚拟环境
-venv/
-env/
-ENV/
-.venv
+# 项目特定文件
+*.json
+logs/
+data/
+service.pid
+.cursor/
+
+# 配置文件（包含敏感信息）
+config.py
+
+# 测试和临时文件
+test_*.txt
+*.log
 
 # IDE
 .vscode/
@@ -33,45 +40,3 @@ ENV/
 *.swp
 *.swo
 *~
-.DS_Store
-
-# 数据文件（用户数据、套利记录、通知等）
-users.json
-arbitrage_records.json
-notifications.json
-user_config.json
-
-# 数据源配置文件（包含API密钥）
-data_source_config.json
-
-# 日志文件
-logs/
-*.log
-.cursor/debug.log
-
-# 临时文件
-*.tmp
-*.bak
-*.cache
-test_*.txt
-service.pid
-
-# 数据目录
-data/
-
-# 系统文件
-Thumbs.db
-desktop.ini
-
-# 环境变量
-.env
-.env.local
-
-# 敏感配置文件（包含真实API密钥）
-config.py
-
-# 其他
-*.orig
-.pytest_cache/
-.coverage
-htmlcov/
